@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  openvpn:
+    image: kylemanna/openvpn:latest
+    container_name: veepeno-openvpn
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "${OVPN_PORT}:1194/udp"
+    volumes:
+      - ./openvpn/config:/etc/openvpn
+      - ./openvpn/scripts:/scripts
+      - ./openvpn/easy-rsa:/easy-rsa
+    environment:
+      - EASYRSA_BATCH=1
+      - EASYRSA_REQ_CN=${OVPN_SERVER_NAME}
+    restart: unless-stopped
+    networks:
+      - veepeno_net
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: veepeno-web
+    ports:
+      - "${WEB_PORT}:8080"
+    volumes:
+      - ./openvpn/config:/etc/openvpn
+      - ./openvpn/scripts:/scripts
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - WEB_ADMIN_USER=${WEB_ADMIN_USER}
+      - WEB_ADMIN_PASSWORD=${WEB_ADMIN_PASSWORD}
+    depends_on:
+      - openvpn
+    restart: unless-stopped
+    networks:
+      - veepeno_net
+
+networks:
+  veepeno_net:
+    driver: bridge 
